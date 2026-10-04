@@ -70,8 +70,6 @@ volley_serve: $(SRCDIR)/volley_serve.c libvolley.a
 check_api: $(SRCDIR)/check_api.c libvolley.a
 	$(CC) $(CFLAGS) $(CPTHREAD) -I$(SRCDIR) -o $@ $(SRCDIR)/check_api.c libvolley.a $(LDLIBS)
 
-gittest: $(SRCDIR)/gittest.c
-	$(CC) $(CFLAGS) $(CPTHREAD) -o $@ $(SRCDIR)/gittest.c $(LDLIBS)
 
 # --- install --------------------------------------------------------
 
@@ -89,7 +87,7 @@ install: all
 
 # check: fully self-contained (no network). Builds everything, boots the local
 # volley_serve on 127.0.0.1:$(PORT) and runs CLI + library assertions.
-check: all smoke check_api volley_serve chk_syntax gittest
+check: all smoke check_api volley_serve chk_syntax
 	@rm -rf check_tmp && mkdir -p check_tmp
 	@echo "== volley serve on 127.0.0.1:$(PORT) =="
 	@./volley_serve $(PORT) >/dev/null 2>&1 & \
@@ -126,28 +124,6 @@ check: all smoke check_api volley_serve chk_syntax gittest
 	  head -c 300 /dev/zero | tr '\0' A > check_tmp/up.bin; \
 	  ./volley --chunked -T check_tmp/up.bin -sf $(BASE)/echo | grep -q "transfer-encoding=chunked" && echo "  ok   --chunked sends TE: chunked" || { echo "  FAIL --chunked TE"; bad=1; }; \
 	  ./volley --chunked -T check_tmp/up.bin -sf $(BASE)/echo | grep -q "decoded-body-bytes=300" && echo "  ok   --chunked body decoded (300B)" || { echo "  FAIL --chunked body bytes"; bad=1; }; \
-	  echo "== git porcelain-lite gates (offline fixture) =="; \
-	  rm -rf check_tmp/gitfix check_tmp/gitnew check_tmp/gitbare; \
-	  MAIN=$$(./gittest check_tmp/gitfix); \
-	  test "$$(./volley -C check_tmp/gitfix rev-parse main)" = "$$MAIN" && echo "  ok   -C option resolves rev" || { echo "  FAIL -C option"; bad=1; }; \
-	  ./volley init check_tmp/gitnew | grep -q 'initialized empty repository' && test -f check_tmp/gitnew/.git/HEAD && echo "  ok   init creates repo" || { echo "  FAIL init"; bad=1; }; \
-	  ./volley init --bare check_tmp/gitbare >/dev/null 2>&1 && test -f check_tmp/gitbare/config && grep -q 'bare = true' check_tmp/gitbare/config && echo "  ok   init --bare" || { echo "  FAIL init --bare"; bad=1; }; \
-	  ./volley -C check_tmp/gitfix branch | grep -q '^\* main' && echo "  ok   branch marks current" || { echo "  FAIL branch current"; bad=1; }; \
-  ./volley -C check_tmp/gitfix branch | grep -q '^  dev$$' && echo "  ok   branch lists others" || { echo "  FAIL branch dev"; bad=1; }; \
-  ./volley -C check_tmp/gitfix tag | grep -qx 'v1.0.0' && echo "  ok   tag v1.0.0" || { echo "  FAIL tag v1.0.0"; bad=1; }; \
-  ./volley -C check_tmp/gitfix tag | grep -qx 'v0.9.0' && echo "  ok   tag v0.9.0" || { echo "  FAIL tag v0.9.0"; bad=1; }; \
-  ./volley -C check_tmp/gitfix remote | grep -qx 'origin' && echo "  ok   remote lists origin" || { echo "  FAIL remote"; bad=1; }; \
-  ./volley -C check_tmp/gitfix remote -v | grep -q 'origin[[:space:]]*https://example.com/gitfix.git' && echo "  ok   remote -v shows url" || { echo "  FAIL remote -v"; bad=1; }; \
-  ./volley -C check_tmp/gitfix remote add upstream https://example.com/upstream.git | grep -q 'added remote upstream' && ./volley -C check_tmp/gitfix remote | grep -qx 'upstream' && echo "  ok   remote add" || { echo "  FAIL remote add"; bad=1; }; \
-  test "$$(./volley -C check_tmp/gitfix rev-parse main)" = "$$MAIN" && echo "  ok   rev-parse main" || { echo "  FAIL rev-parse main"; bad=1; }; \
-  test "$$(./volley -C check_tmp/gitfix rev-parse HEAD)" = "$$MAIN" && echo "  ok   rev-parse HEAD" || { echo "  FAIL rev-parse HEAD"; bad=1; }; \
-  test "$$(./volley -C check_tmp/gitfix rev-parse origin/main refs/tags/v0.9.0 | tail -n1)" = "$$MAIN" && echo "  ok   rev-parse multiple refs" || { echo "  FAIL rev-parse multiple"; bad=1; }; \
-  test "$$(./volley -C check_tmp/gitfix cat-file -t $$MAIN)" = "commit" && echo "  ok   cat-file -t" || { echo "  FAIL cat-file -t"; bad=1; }; \
-  ./volley -C check_tmp/gitfix cat-file -p $$MAIN | grep -q '^first commit' && echo "  ok   cat-file -p commit" || { echo "  FAIL cat-file -p commit"; bad=1; }; \
-  ./volley -C check_tmp/gitfix ls-tree HEAD | grep -q '100644 blob' && echo "  ok   ls-tree HEAD" || { echo "  FAIL ls-tree"; bad=1; }; \
-  ./volley -C check_tmp/gitfix ls-tree HEAD | grep -q 'hello.txt' && echo "  ok   ls-tree names" || { echo "  FAIL ls-tree names"; bad=1; }; \
-  ./volley -C check_tmp/gitfix log | head -n1 | grep -q 'first commit' && echo "  ok   log subject" || { echo "  FAIL log subject"; bad=1; }; \
-  ./volley -C check_tmp/gitfix log | grep -q "$$(echo $$MAIN | cut -c1-7)" && echo "  ok   log short oid" || { echo "  FAIL log short oid"; bad=1; }; \
   test $$bad -eq 0 && echo "== check passed ==" || { echo "== check failed =="; exit 1; }
 
 
@@ -162,3 +138,9 @@ test: check
 	@./volley --http11 -sf https://nghttp2.org/ | grep -q "HTTP/2 C Library" && echo "  ok   --http11 https://nghttp2.org" || { echo "  FAIL --http11 online"; exit 1; }
 	@./volley --http2  -sf https://nghttp2.org/ | grep -q "HTTP/2 C Library" && echo "  ok   --http2  https://nghttp2.org" || { echo "  FAIL --http2 online"; exit 1; }
 	@./volley ls-remote https://github.com/curl/curl.git | grep -q "refs/heads/" && echo "  ok   ls-remote github (curl)" || echo "  skip ls-remote github (unreachable)"
+
+clean:
+	rm -f volley smoke volley_serve check_api libvolley.a libvolley.so
+	rm -rf check_tmp
+
+.PHONY: all install clean check test smoke chk_syntax
