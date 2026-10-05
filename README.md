@@ -8,15 +8,114 @@ This project is **not** affiliated with, endorsed by, or related to
 library. It is an independent command-line HTTP client and git porcelain written
 in C, and shares no code with that project.
 
+## Install
+
+### From the release tarball
+
+```sh
+tar -xJf volley-1.0.0.tar.xz
+cd volley-1.0.0
+./configure
+make
+sudo make install
+```
+
+`make install` places:
+
+| Path | Contents |
+| --- | --- |
+| `$PREFIX/bin/volley` | the CLI |
+| `$PREFIX/include/libvolley.h` | library header |
+| `$PREFIX/lib/libvolley.a` | static library |
+| `$PREFIX/lib/libvolley.so.1.0.0` | shared library, plus `libvolley.so.1` and `libvolley.so` symlinks |
+
+It runs `ldconfig` on the library directory when possible, so the shared library
+is picked up without setting `LD_LIBRARY_PATH`.
+
+### Install options
+
+`configure` accepts:
+
+```
+./configure [--prefix=DIR] [--cc=CMD] [--cflags=...] [--ldlibs=...] [--static-libs]
+```
+
+Then `sudo make install PREFIX=/usr/local`, or stage a package build with
+`make install DESTDIR=/tmp/pkg PREFIX=/usr`.
+
+### Build dependencies
+
+Debian/Ubuntu:
+
+```sh
+sudo apt install build-essential libssl-dev zlib1g-dev
+```
+
+Fedora/RHEL:
+
+```sh
+sudo dnf install gcc make openssl-devel zlib-devel
+```
+
+Alpine:
+
+```sh
+sudo apk add build-base openssl-dev zlib-dev
+```
+
+macOS (Homebrew):
+
+```sh
+brew install openssl@3 zlib
+```
+
+Volley needs a C compiler, OpenSSL, zlib, and pthreads. Nothing else.
+
+### Linking against libvolley
+
+Static:
+
+```sh
+cc -o myapp myapp.c -I/usr/local/include /usr/local/lib/libvolley.a \
+   -lssl -lcrypto -lz -pthread
+```
+
+Shared:
+
+```sh
+cc -o myapp myapp.c -I/usr/local/include -L/usr/local/lib -lvolley \
+   -lssl -lcrypto -lz -pthread
+```
+
+Or skip the manual flags and build against the installed copy:
+
+```sh
+./configure --prefix=/usr
+make
+sudo make install
+sudo ldconfig        # if PREFIX/lib is not on the loader path
+```
+
+### Uninstall
+
+There is no `make uninstall` target. Remove the installed files by hand:
+
+```sh
+sudo rm -f /usr/local/bin/volley \
+           /usr/local/include/libvolley.h \
+           /usr/local/lib/libvolley.a \
+           /usr/local/lib/libvolley.so*
+```
+
 ## Build
 
 ```sh
 ./configure && make
 ```
 
-Produces the `volley` CLI plus `libvolley.a` / `libvolley.so`. Dependencies:
-OpenSSL, zlib, pthreads. `make check` runs the offline test suite (boots a local
-test server, no network required); `make test` adds best-effort online gates.
+Produces the `volley` CLI plus `libvolley.a` / `libvolley.so`. `make check` runs
+the offline test suite (boots a local test server, no network required);
+`make test` adds best-effort online gates. `make clean` removes build artifacts.
 
 ## HTTP features
 
