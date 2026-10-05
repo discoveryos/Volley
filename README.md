@@ -8,6 +8,41 @@ This project is **not** affiliated with, endorsed by, or related to
 library. It is an independent command-line HTTP client and git porcelain written
 in C, and shares no code with that project.
 
+## Release v1.0.0
+
+First stable release. A single C binary that replaces `curl`, `wget` and `git`
+for the common cases: fetch a URL, download a file, crawl a site, clone a repo.
+
+**HTTP**
+- HTTP/1.1 and HTTP/2 over TLS (ALPN), FTP, GOPHER
+- SOCKS5/HTTP proxies, mTLS, transparent gzip/deflate, IPv4/IPv6 forcing
+- Any method, repeatable headers, POST data, multipart forms, file uploads,
+  chunked streaming
+- Cookie jars and persistent per-host sessions (`-S`)
+- Segmented parallel downloads (`-c`), resume (`-C`), multi-URL parallelism
+  (`-j`), rate limiting
+- Recursive HTML/CSS crawling and mirror mode with depth, domain and pattern
+  controls
+- Retries, timeouts, redirect control, `--fail`, progress meters
+
+**Git** (no external `git` binary)
+- `clone`, `init`, `init --bare`, `ls-remote`, `branch`, `tag`, `remote`,
+  `rev-parse`, `cat-file`, `log`, `ls-tree`
+- All accept `-C <dir>` and `--git-dir <dir>`
+- Scoped to read-only inspection plus cloning: no commit, push, fetch, merge,
+  rebase, hooks, or packfile reading
+
+**Library**
+- `libvolley.a` and `libvolley.so` expose the same engine, including
+  `volley_git_clone` and `volley_large_fetch` for O(1)-memory streaming downloads
+  with validated resume
+
+**Build and test**
+- `./configure && make`; requires OpenSSL, zlib, pthreads
+- `make check` runs the full offline suite with no network required
+
+See [Install](#install) below, and the feature sections for full detail.
+
 ## Install
 
 ### From the release tarball
