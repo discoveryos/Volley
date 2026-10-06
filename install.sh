@@ -71,8 +71,8 @@ if [ "$OS" = linux ] && [ -r /proc/version ] && \
 fi
 
 # --- options ---------------------------------------------------------
-PREFIX=/usr/local
-JOBS=0
+PREFIX=${VL_PREFIX:-/usr/local}
+JOBS=${VL_JOBS:-0}
 DO_CHECK=no
 DO_INSTALL=yes
 DO_CLEAN=no
@@ -81,6 +81,16 @@ DEPS_ONLY=no
 DEPS_MODE=auto          # auto | never | only
 ASSUME_YES=no
 CONFIGURE_ARGS=
+
+# Options can also arrive as VL_* environment variables, which is how
+# install.bat (cmd.exe) hands them over without shell-quoting games.
+[ -n "${VL_CHECK-}" ]       && DO_CHECK=yes
+[ -n "${VL_BUILD_ONLY-}" ]  && DO_INSTALL=no
+[ -n "${VL_CLEAN-}" ]       && DO_CLEAN=yes
+[ -n "${VL_UNINSTALL-}" ]   && UNINSTALL=yes
+[ -n "${VL_NO_DEPS-}" ]     && DEPS_MODE=never
+[ -n "${VL_DEPS_ONLY-}" ]   && { DEPS_ONLY=yes; DEPS_MODE=only; }
+[ -n "${VL_YES-}" ]         && ASSUME_YES=yes
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -112,6 +122,17 @@ fi
 
 have() { command -v "$1" >/dev/null 2>&1; }
 
+# Windows prefixes arrive as C:\... (MSYS2) or C:\... (WSL); normalise them
+# to POSIX form so configure and make install see a usable path.
+case "$PREFIX" in
+  [A-Za-z]:*|*\\*)
+    if have cygpath; then
+      PREFIX=$(cygpath -u "$PREFIX" 2>/dev/null || echo "$PREFIX")
+    elif have wslpath; then
+      PREFIX=$(wslpath -u "$PREFIX" 2>/dev/null || echo "$PREFIX")
+    fi ;;
+esac
+
 # --- privilege --------------------------------------------------------
 run_privileged() {
   if [ "$(id -u 2>/dev/null || echo 1)" = 0 ]; then
@@ -127,6 +148,11 @@ run_privileged() {
 }
 
 pkg_root() {
+  # $1 = package manager that is about to run
+  case "$1" in
+    brew)  echo "" ;;          # Homebrew must never run under sudo
+    msys2) echo "" ;;          # MSYS2 pacman runs as the invoking user
+  esac
   if [ "$(id -u 2>/dev/null || echo 1)" = 0 ]; then echo ""
   elif have sudo; then echo "sudo"
   else echo "__nopriv__"; fi
@@ -269,11 +295,11 @@ print_missing() {
     return
   fi
   say "install them with:"
-  local root; root=$(pkg_root)
+  local root; root=$(pkg_root "$mgr")
   case "$root" in
     "")         say "  $(pkg_install_cmd "$mgr")" ;;
     __nopriv__) say "  $(pkg_install_cmd "$mgr")   # run as root / with sudo" ;;
-    *)          say "  $(pkg_root) $(pkg_install_cmd "$mgr")" ;;
+    *)          say "  $(pkg_root "$mgr") $(pkg_install_cmd "$mgr")" ;;
   esac
 }
 
@@ -302,11 +328,11 @@ install_deps() {
     fi
   fi
 
-  root=$(pkg_root)
+  root=$(pkg_root "$mgr")
   case "$root" in
     __nopriv__) die "no root/sudo available to install packages ($pkgs)" ;;
     "")         sh -c "$(pkg_install_cmd "$mgr")" ;;
-    *)          sh -c "$(pkg_root) $(pkg_install_cmd "$mgr")" ;;
+    *)          sh -c "$(pkg_root "$mgr") $(pkg_install_cmd "$mgr")" ;;
   esac
 
   # re-probe after installing
@@ -329,10 +355,12 @@ if [ "$UNINSTALL" = yes ]; then
   done
   rm -f "$PREFIX/include/libvolley.h" 2>/dev/null || \
     run_privileged rm -f "$PREFIX/include/libvolley.h" || true
-  if [ -f "$PREFIX/bin/volley" ]; then
-    rm -f "$PREFIX/bin/volley" 2>/dev/null || \
-      run_privileged rm -f "$PREFIX/bin/volley" || true
-  fi
+  for b in volley volley.exe; do
+    if [ -f "$PREFIX/bin/$b" ]; then
+      rm -f "$PREFIX/bin/$b" 2>/dev/null || \
+        run_privileged rm -f "$PREFIX/bin/$b" || true
+    fi
+  done
   say "done"
   exit 0
 fi
@@ -434,11 +462,13 @@ fi
 say ""
 say "== installed =="
 installed_ok=yes
-for f in "$PREFIX/bin/volley" "$PREFIX/include/libvolley.h" "$PREFIX/lib/libvolley.a"; do
+BIN="$PREFIX/bin/volley"
+[ -e "$BIN" ] || BIN="$PREFIX/bin/volley.exe"
+for f in "$BIN" "$PREFIX/include/libvolley.h" "$PREFIX/lib/libvolley.a"; do
   if [ -e "$f" ]; then note "ok   $f"; else note "MISS $f"; installed_ok=no; fi
 done
 
-"$PREFIX/bin/volley" --version 2>/dev/null || installed_ok=no
+"$BIN" --version 2>/dev/null || installed_ok=no
 
 case ":$PATH:" in
   *":$PREFIX/bin:"*) ;;

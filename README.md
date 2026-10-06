@@ -69,7 +69,43 @@ manager. It asks before touching the system (pass `-y` to skip the prompt).
 ./install.sh --help
 ```
 
-Windows: run it from an **MSYS2** shell (or WSL), not `cmd.exe`:
+### Windows: install.bat
+
+From a plain `cmd.exe` prompt, `install.bat` does the same job: it finds a
+build environment (MSYS2 first, WSL as fallback), installs the missing
+packages, then runs `install.sh`, which runs `configure`, `make` and
+`make install`:
+
+```bat
+install.bat
+install.bat /y /check
+install.bat /prefix=C:\volley /addpath
+install.bat /uninstall
+install.bat /?
+```
+
+| Option | Meaning |
+| --- | --- |
+| `/prefix=DIR` | install root, Windows or MSYS2 style (default `C:\msys64\usr\local`) |
+| `/jobs=N` | parallel build jobs |
+| `/check` | run the test suite before installing |
+| `/y` | answer yes to package installs without prompting |
+| `/no-deps` | report missing packages, never install them |
+| `/deps-only` | check/install dependencies and exit |
+| `/build-only` | compile but do not install |
+| `/clean` | remove previous build products first |
+| `/uninstall` | remove the installed files |
+| `/addpath` | add the install folder to the user PATH |
+| `/msys2=DIR` | use this MSYS2 root (the folder containing `usr\bin\bash.exe`) |
+| `/wsl` | build inside WSL instead of MSYS2 |
+
+With no MSYS2 or WSL present, it prints the required `pacman` packages and can
+install MSYS2 for you with `winget`. Windows builds are MSYS2/MinGW
+executables: `configure` sets `EXEEXT=.exe`, so the CLI installs as
+`volley.exe` and the shared library is skipped (the engine has no
+`__declspec(dllexport)` annotations).
+
+From an MSYS2 shell the shell installer works too:
 
 ```sh
 pacman -S --needed base-devel mingw-w64-x86_64-toolchain

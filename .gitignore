@@ -1,8 +1,12 @@
 # build artifacts
 /volley
+/volley.exe
 /smoke
+/smoke.exe
 /volley_serve
+/volley_serve.exe
 /check_api
+/check_api.exe
 /gittest
 /volley_pic.o
 /libvolley.a
