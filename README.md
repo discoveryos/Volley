@@ -45,7 +45,38 @@ See [Install](#install) below, and the feature sections for full detail.
 
 ## Install
 
-### From the release tarball
+### Automatic: install.sh
+
+`install.sh` checks that the required packages are present, installs the
+missing ones, runs `configure` and `make`, runs the tests, and installs
+everything into place:
+
+```sh
+./install.sh
+```
+
+On Linux it auto-detects `apt`, `dnf`, `yum`, `pacman`, `apk`, `zypper` or
+`xbps`; on macOS it uses Homebrew; on Windows it uses the MSYS2 package
+manager. It asks before touching the system (pass `-y` to skip the prompt).
+
+```sh
+./install.sh --deps-only        # just check / install dependencies
+./install.sh --no-deps          # report missing packages, never install
+./install.sh --check            # run the full test suite before installing
+./install.sh --prefix=$HOME/.local -y
+./install.sh --build-only       # compile, do not install
+./install.sh --uninstall        # remove the installed files
+./install.sh --help
+```
+
+Windows: run it from an **MSYS2** shell (or WSL), not `cmd.exe`:
+
+```sh
+pacman -S --needed base-devel mingw-w64-x86_64-toolchain
+./install.sh --prefix=/mingw64
+```
+
+Manual install without the script:
 
 ```sh
 tar -xJf volley-1.0.0.tar.xz
